@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Glyph Music</string>
+    <string name="widget_wide">Glyph Music &#183; Wide (4&#215;2)</string>
+    <string name="widget_square">Glyph Music &#183; Square (2&#215;2)</string>
+    <string name="widget_tall">Glyph Music &#183; Tall (2&#215;4)</string>
+    <string name="widget_description">Translucent music controls with album artwork, song title, and artist. Resize for square, wide, or tall layouts.</string>
+    <color name="glyph_icon_background">#141518</color>
+</resources>
