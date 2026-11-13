@@ -42,6 +42,9 @@ class WidgetPlaybackService : Service() {
             .setSilent(true)
             .build())
         val engine = AudioServicePlugin.getFlutterEngine(this)
+        if (!engine.plugins.has(GlyphVisualizerPlugin::class.java)) {
+            engine.plugins.add(GlyphVisualizerPlugin())
+        }
         channel = MethodChannel(engine.dartExecutor.binaryMessenger, "glyph/widget_background").apply {
             setMethodCallHandler { call, result ->
                 when (call.method) {

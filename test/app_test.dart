@@ -74,16 +74,14 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        await tester.ensureVisible(find.text('YouTube'));
-        await tester.tap(find.text('YouTube'));
-        await tester.pumpAndSettle();
+        expect(find.text('Local library'), findsNothing);
         const query = 'Björk & music #1 မြန်မာ';
         await tester.enterText(find.byType(TextField), query);
-        await tester.pumpAndSettle();
-        await tester.ensureVisible(
+        expect(
           find.widgetWithText(FilledButton, 'Search YouTube'),
+          findsNothing,
         );
-        await tester.tap(find.widgetWithText(FilledButton, 'Search YouTube'));
+        await tester.pump(const Duration(milliseconds: 500));
         await tester.runAsync(() async {
           await Future<void>.delayed(const Duration(milliseconds: 150));
         });
@@ -102,6 +100,7 @@ void main() {
           200,
           scrollable: find.byType(Scrollable).first,
         );
+        await tester.pumpAndSettle();
         expect(find.text('First Light'), findsOneWidget);
         await tester.tap(download);
         await tester.runAsync(() async {
@@ -151,7 +150,11 @@ void main() {
         addTearDown(tester.view.resetDevicePixelRatio);
         final db = MusicDatabase(NativeDatabase.memory());
         final audio = (await tester.runAsync(() async => GlyphAudioHandler()))!;
-        final c = AppController(LibraryRepository(db), audio)..theme = mode;
+        final c = AppController(
+          LibraryRepository(db),
+          audio,
+          discovery: TestDiscovery(),
+        )..theme = mode;
         final previewKey = GlobalKey();
         await tester.pumpWidget(
           RepaintBoundary(
@@ -163,7 +166,10 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
-        expect(find.text('Import music'), findsOneWidget);
+        expect(find.text('Import music'), findsNothing);
+        expect(find.text('TRACKS'), findsNothing);
+        expect(find.text('ON YOUR DEVICE'), findsNothing);
+        expect(find.byTooltip('Settings'), findsOneWidget);
         await capturePreview(tester, previewKey, 'home-${mode.name}');
         await tester.tap(find.text('Library'));
         await tester.pumpAndSettle();
@@ -172,8 +178,12 @@ void main() {
         await tester.tap(find.text('Search'));
         await tester.pumpAndSettle();
         await tester.enterText(find.byType(TextField).first, 'unknown');
+        await tester.pump(const Duration(milliseconds: 500));
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 150)),
+        );
         await tester.pumpAndSettle();
-        expect(find.text('No tracks found'), findsOneWidget);
+        expect(find.text('First Light'), findsOneWidget);
         await tester.tap(find.text('Playlists'));
         await tester.pumpAndSettle();
         await tester.tap(find.byTooltip('Create playlist'));

@@ -268,7 +268,7 @@ class LibraryRepository {
           },
       ],
       'settings': await db.rows(
-        "SELECT * FROM app_settings WHERE key IN ('theme','quality','accent','accentColour','sleepMinutes')",
+        "SELECT * FROM app_settings WHERE key IN ('theme','quality','accent','accentColour','sleepMinutes','musicVisualizer')",
       ),
     };
   }
@@ -318,6 +318,7 @@ class LibraryRepository {
           'accent',
           'accentColour',
           'sleepMinutes',
+          'musicVisualizer',
         ].contains(s['key'])) {
           await setSetting(
             s['key'] as String,

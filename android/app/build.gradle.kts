@@ -27,6 +27,7 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["nothingGlyphApiKey"] = providers.gradleProperty("nothingGlyphApiKey").getOrElse("test")
     }
 
     buildTypes {
@@ -46,5 +47,9 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    implementation(files("libs/glyph-matrix-sdk-2.0.aar"))
 }
 

@@ -1,13 +1,14 @@
 package app.glyph.glyph_music
 
 import android.app.PendingIntent
-import android.app.WallpaperManager
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
 import android.content.ComponentName
+import android.content.ComponentCallbacks
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.res.Configuration
 import android.graphics.BitmapFactory
 import android.graphics.Bitmap
 import android.graphics.BitmapShader
@@ -20,17 +21,35 @@ import android.os.Build
 import android.os.Bundle
 import android.util.SizeF
 import android.widget.RemoteViews
-import android.view.KeyEvent
-import com.ryanheise.audioservice.MediaButtonReceiver
 import es.antonborri.home_widget.HomeWidgetPlugin
 import es.antonborri.home_widget.HomeWidgetProvider
 
 open class GlyphWidget : HomeWidgetProvider() {
     companion object {
+        private var observingConfiguration = false
+
+        private fun observeConfiguration(context: Context) {
+            if (observingConfiguration) return
+            observingConfiguration = true
+            val application = context.applicationContext
+            application.registerComponentCallbacks(object : ComponentCallbacks {
+                override fun onConfigurationChanged(newConfig: Configuration) {
+                    val manager = AppWidgetManager.getInstance(application)
+                    val data = HomeWidgetPlugin.getData(application)
+                    for (provider in listOf(GlyphCompactWidget(), GlyphMediumWidget(), GlyphLargeWidget())) {
+                        val ids = manager.getAppWidgetIds(ComponentName(application, provider.javaClass))
+                        if (ids.isNotEmpty()) provider.onUpdate(application, manager, ids, data)
+                    }
+                }
+
+                override fun onLowMemory() {}
+            })
+        }
+
         fun publishPreviews(context: Context) {
             if (Build.VERSION.SDK_INT < 35) return
             val preferences = context.getSharedPreferences("glyph_widget_previews", Context.MODE_PRIVATE)
-            if (preferences.getInt("revision", 0) == 6) return
+            if (preferences.getInt("revision", 0) == 7) return
             val manager = AppWidgetManager.getInstance(context)
             try {
                 var accepted = true
@@ -45,7 +64,7 @@ open class GlyphWidget : HomeWidgetProvider() {
                         RemoteViews(context.packageName, layout)
                     ) && accepted
                 }
-                if (accepted) preferences.edit().putInt("revision", 6).apply()
+                if (accepted) preferences.edit().putInt("revision", 7).apply()
             } catch (_: RuntimeException) {
                 // Launcher quotas/support vary; XML and PNG previews remain available.
             }
@@ -58,7 +77,8 @@ open class GlyphWidget : HomeWidgetProvider() {
     }
 
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray, data: SharedPreferences) {
-        val surface = widgetSurface(context)
+        observeConfiguration(context)
+        val mode = data.getString("themeMode", "system")
         // Decode once per broadcast; size variants share one bounded bitmap.
         val artwork = data.getString("artwork", "")
         val bitmap = if (!artwork.isNullOrEmpty()) {
@@ -102,8 +122,33 @@ open class GlyphWidget : HomeWidgetProvider() {
         }
 
         fun content(layout: Int): RemoteViews {
-            val views = RemoteViews(context.packageName, layout)
-            views.setImageViewBitmap(R.id.widget_surface, surface)
+            val resolvedLayout = if (mode == "light" || mode == "dark") {
+                when (layout) {
+                    R.layout.glyph_compact -> R.layout.glyph_compact_explicit
+                    R.layout.glyph_tall -> R.layout.glyph_tall_explicit
+                    else -> R.layout.glyph_widget_explicit
+                }
+            } else layout
+            val views = RemoteViews(context.packageName, resolvedLayout)
+            // System colours remain resource references so the launcher can
+            // resolve values-night even when the app process is not running.
+            views.setImageViewResource(R.id.widget_surface, android.R.color.transparent)
+            if (mode == "light" || mode == "dark") {
+                val dark = mode == "dark"
+                val primary = Color.parseColor(if (dark) "#F5F5F2" else "#181818")
+                val secondary = Color.parseColor(if (dark) "#CECECC" else "#505050")
+                views.setInt(R.id.widget_root, "setBackgroundResource",
+                    if (dark) R.drawable.widget_background_dark else R.drawable.widget_background_light)
+                views.setTextColor(R.id.track_title, primary)
+                views.setTextColor(R.id.track_artist, secondary)
+                views.setInt(R.id.previous_track, "setColorFilter", primary)
+                views.setInt(R.id.next_track, "setColorFilter", primary)
+                if (layout != R.layout.glyph_widget) views.setInt(R.id.widget_brand, "setColorFilter", secondary)
+                if (layout == R.layout.glyph_tall) {
+                    views.setTextColor(R.id.queue_shortcut, primary)
+                    views.setTextColor(R.id.playlists_shortcut, primary)
+                }
+            }
             views.setTextViewText(R.id.track_title, data.getString("title", "Your music. Your space."))
             views.setTextViewText(R.id.track_artist, data.getString("artist", "Open Glyph Music to import music"))
             val playing = data.getBoolean("playing", false)
@@ -163,25 +208,6 @@ open class GlyphWidget : HomeWidgetProvider() {
         } else {
             PendingIntent.getService(context, code, intent, flags)
         }
-    }
-    private fun widgetSurface(context: Context): Bitmap {
-        // Public wallpaper colours provide a subtle tint without reading wallpaper
-        // images or requesting storage access. This is a translucent material;
-        // launcher-owned background blur is not available to RemoteViews.
-        val wallpaper = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            try {
-                context.getSystemService(WallpaperManager::class.java)
-                    ?.getWallpaperColors(WallpaperManager.FLAG_SYSTEM)?.primaryColor?.toArgb()
-            } catch (_: RuntimeException) { null }
-        } else null
-        fun channel(value: Int) = (value * .08f + 24 * .92f).toInt()
-        val tint = wallpaper ?: Color.rgb(80, 84, 92)
-        val red = channel(Color.red(tint))
-        val green = channel(Color.green(tint))
-        val blue = channel(Color.blue(tint))
-        val result = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
-        result.eraseColor(Color.argb(104, red, green, blue))
-        return result
     }
 }
 

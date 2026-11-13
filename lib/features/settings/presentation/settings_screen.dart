@@ -46,6 +46,15 @@ class SettingsScreen extends StatelessWidget {
           const SectionHeading('Music'),
           _SettingsGroup(
             children: [
+              SwitchListTile(
+                secondary: const Icon(Icons.graphic_eq),
+                title: const Text('Music visualizer'),
+                subtitle: Text(c.musicVisualizerStatus),
+                value: c.musicVisualizerEnabled,
+                onChanged: c.changingMusicVisualizer
+                    ? null
+                    : (value) => c.run(() => c.setMusicVisualizer(value)),
+              ),
               _SettingsRow(
                 icon: Icons.bedtime_outlined,
                 title: 'Sleep timer',

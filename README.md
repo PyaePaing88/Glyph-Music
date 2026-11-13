@@ -1,4 +1,4 @@
-﻿# Glyph Music
+# Glyph Music
 
 An Android-first Flutter music player built from `FLUTTER_MUSIC_PLAYER_REQUIREMENTS.md`. The app starts with an empty library and works without an account or network connection.
 
@@ -45,7 +45,7 @@ music. Repeat with the phone's background battery restriction disabled if needed
 ## Implemented
 
 - Original monochrome Nothing-inspired light, dark, and system themes, dot-matrix headings, procedural record artwork, and a rotating Now Playing record.
-- Home, local/YouTube search, songs/artists/albums/genres, favorites, recently played, playlists, Now Playing, queue, downloads, and settings screens.
+- Swipe navigation between Home, YouTube Search, Library, and Playlists with preserved screen state; local search in Library, songs/artists/albums/genres, favorites, recently played, playlists, Now Playing, queue, downloads, and settings screens.
 - MP3 file import through the system picker, optional selected-folder scanning, bounded ID3v2.3/v2.4 and ID3v1 tag reading, embedded artwork where supported, real decoder validation, content-hash duplicate detection, app-managed copies, and storage checks.
 - Automatic Android phone audio discovery on opening/resuming Glyph, plus manual rescan in Library/Settings. Uses MediaStore across shared internal/removable storage, includes recordings and short clips, reads available metadata/artwork, and plays original content URIs without copying audio. Audio permission is requested once; denial never clears the existing library. Rescans preserve user edits, favorites, history and playlist membership, deduplicate media identities and remove entries for deleted shared files.
 - Local `just_audio` playback and an `audio_service` media session: play/pause, previous/next, seek, shuffle, repeat one/all, notification/headset interfaces, audio focus, and unplug handling through `audio_session`/`just_audio`.
@@ -65,7 +65,7 @@ Everything local works with neither endpoint configured. No private server crede
 
 ### YouTube
 
-Select YouTube, enter a query, and tap **Search YouTube**. Results stay inside Glyph Music. Tap Download to save available audio into the local track list. No proxy/API key is required for the default `youtube_explode_dart` adapter. The external-video action remains optional. YouTube can reject restricted or unavailable streams; failures never become playable library entries. The adapter may need updates when YouTube changes its service. See the [integration's documentation](https://github.com/Hexer10/youtube_explode_dart).
+Open Search and type a query. YouTube search starts automatically after a brief pause in typing; the keyboard Search action runs it immediately. Local collection search remains in Library. Results stay inside Glyph Music. Tap Download to save available audio into the local track list. No proxy/API key is required for the default `youtube_explode_dart` adapter. The external-video action remains optional. YouTube can reject restricted or unavailable streams; failures never become playable library entries. The adapter may need updates when YouTube changes its service. See the [integration's documentation](https://github.com/Hexer10/youtube_explode_dart).
 
 To use an optional official-API search proxy instead of the default search adapter:
 
@@ -82,7 +82,7 @@ Build the mobile app with your deployed endpoint:
 .\scripts\flutter.ps1 run --dart-define=YOUTUBE_DISCOVERY_ENDPOINT=https://your-server.example/youtube/search
 ```
 
-The endpoint receives `q` and returns the official search response shape (`items[].id.videoId`, `items[].snippet`). API quota and connectivity failures provide a local-search fallback. A disconnected search attempt is handled without affecting the local player.
+The endpoint receives `q` and returns the official search response shape (`items[].id.videoId`, `items[].snippet`). API quota and connectivity failures show an error with a retry action on the YouTube Search screen. A disconnected search attempt is handled without affecting the local player.
 
 References: [YouTube search API](https://developers.google.com/youtube/v3/docs/search/list), [YouTube API policies](https://developers.google.com/youtube/terms/developer-policies).
 
@@ -111,7 +111,7 @@ Only connect providers whose licenses actually permit downloading. The adapter r
 
 ## Storage and limitations
 
-Widgets use a smoked translucent gradient; wallpaper shows through the borderless surface. This does not request system wallpaper access or apply launcher-level background blur. Grid sizes and corner treatment depend on the launcher. After updating the APK, remove and re-add old widgets if the launcher retains old previews. Native widget/icon changes require an APK rebuild and full app restart; Flutter hot reload cannot apply them.
+Widgets use a translucent surface; wallpaper shows through the borderless background. Widgets follow the app theme: System adapts to the phone light/dark setting, while Light and Dark stay fixed. Text, transport controls, and shortcuts use matching readable colors. This does not request system wallpaper access or apply launcher-level background blur. Grid sizes and corner treatment depend on the launcher. After updating the APK, remove and re-add old widgets if the launcher retains old previews. Native widget/icon changes require an APK rebuild and full app restart; Flutter hot reload cannot apply them.
 
 Widget playback opens Glyph Music as needed, restores its queue, and then handles the button action. It supports a closed app or ordinary process death. Android 15+ system **Force stop** explicitly disables widgets until the app is reopened; see [Android stopped-state behavior](https://developer.android.com/about/versions/15/behavior-changes-all#stopped-state).
 

@@ -86,6 +86,20 @@ class AppController extends ChangeNotifier {
   Set<String> youtubeTrackIds = {};
   ThemeMode theme = ThemeMode.system;
   int quality = 192;
+  bool musicVisualizerEnabled = false;
+  bool changingMusicVisualizer = false;
+  String get musicVisualizerStatus => switch (audio.visualizer.status.value) {
+    'active' => 'Glyph lights are reacting to your music',
+    'connecting' => 'Connecting to Glyph lights...',
+    'unsupported' =>
+      'Requires a supported Nothing phone with Android 14 or later',
+    'permission_required' => 'Allow audio permission to analyze playback. If denied, allow Microphone in phone app settings, then enable again.',
+    'authorization_required' =>
+      'Glyph access needs authorization from Nothing or Glyph developer mode',
+    'unavailable' =>
+      'Glyph lights are unavailable. Check phone Glyph settings and try again.',
+    _ => 'Make Nothing phone Glyph lights react to music played in this app',
+  };
   int sleepMinutes = 60;
   late final SleepTimer sleepTimer = SleepTimer(
     onExpired: () => run(() async {
@@ -120,6 +134,7 @@ class AppController extends ChangeNotifier {
         ..sort((a, b) => b.lastPlayed!.compareTo(a.lastPlayed!));
   int get totalBytes => songs.fold(0, (n, s) => n + s.bytes);
   Future<void> initialize() async {
+    audio.visualizer.status.addListener(_visualizerChanged);
     await refresh();
     await _readSettings();
     final saved = await repository.setting('playback') as Map<String, dynamic>?;
@@ -217,7 +232,14 @@ class AppController extends ChangeNotifier {
       await repository.setting('accentColour'),
       legacyOrange: await repository.setting('accent') == true,
     );
+    await audio.setWidgetTheme(theme.name);
     await audio.setWidgetAccent(accentColour);
+    musicVisualizerEnabled =
+        await repository.setting('musicVisualizer') == true;
+    final visualizerAccepted = await audio.visualizer.setEnabled(
+      musicVisualizerEnabled,
+    );
+    musicVisualizerEnabled = musicVisualizerEnabled && visualizerAccepted;
     final savedSleep = await repository.setting('sleepMinutes');
     sleepMinutes = savedSleep is int && savedSleep >= 1 && savedSleep <= 720
         ? savedSleep
@@ -551,12 +573,36 @@ class AppController extends ChangeNotifier {
     theme = value;
     await repository.setSetting('theme', value.name);
     notifyListeners();
+    await audio.setWidgetTheme(value.name);
   }
 
   Future<void> setQuality(int value) async {
     quality = value;
     await repository.setSetting('quality', value);
     notifyListeners();
+  }
+
+  void _visualizerChanged() => notifyListeners();
+
+  Future<void> setMusicVisualizer(bool value) async {
+    if (changingMusicVisualizer) return;
+    changingMusicVisualizer = true;
+    notifyListeners();
+    try {
+      final accepted = await audio.visualizer.setEnabled(
+        value,
+        requestPermission: value,
+      );
+      if (accepted) {
+        musicVisualizerEnabled = value;
+        await repository.setSetting('musicVisualizer', value);
+      } else {
+        message(musicVisualizerStatus);
+      }
+    } finally {
+      changingMusicVisualizer = false;
+      notifyListeners();
+    }
   }
 
   Future<void> setAccentColour(AccentColour value) async {
@@ -651,7 +697,10 @@ class AppController extends ChangeNotifier {
     theme = ThemeMode.system;
     quality = 192;
     sleepMinutes = 60;
+    musicVisualizerEnabled = false;
+    await audio.visualizer.setEnabled(false);
     accentColour = AccentColour.red;
+    await audio.setWidgetTheme(theme.name);
     await audio.setWidgetAccent(accentColour);
     await refresh();
   }
@@ -666,7 +715,7 @@ class AppController extends ChangeNotifier {
     }
     if (_youtubeHost(uri.host)) {
       throw const FormatException(
-        'Use Search → YouTube to download this track into your library.',
+        'Use Search to find this track on YouTube and download it into your library.',
       );
     }
     if (downloads.any(
@@ -923,6 +972,7 @@ class AppController extends ChangeNotifier {
   ].any((h) => host == h || host.endsWith('.$h'));
   @override
   void dispose() {
+    audio.visualizer.status.removeListener(_visualizerChanged);
     sleepTimer.dispose();
     _timer?.cancel();
     for (final s in _subscriptions) {

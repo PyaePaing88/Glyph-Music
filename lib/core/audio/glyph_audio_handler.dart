@@ -8,10 +8,12 @@ import 'package:home_widget/home_widget.dart';
 
 import '../../features/library/domain/song.dart';
 import '../widgets/accent_colour.dart';
+import 'glyph_visualizer.dart';
 
 class GlyphAudioHandler extends BaseAudioHandler
     with QueueHandler, SeekHandler {
   final player = AudioPlayer();
+  final visualizer = GlyphVisualizer();
   late final Stream<Duration> smoothPositionStream = player
       .createPositionStream(
         steps: 10000,
@@ -34,6 +36,10 @@ class GlyphAudioHandler extends BaseAudioHandler
   }
 
   Future<void> initialize() async {
+    visualizer.initialize();
+    _subscriptions.add(
+      player.androidAudioSessionIdStream.listen((_) => _syncVisualizer()),
+    );
     final session = await AudioSession.instance;
     await session.configure(const AudioSessionConfiguration.music());
     _subscriptions.add(mediaItem.listen((_) => unawaited(_updateWidgets())));
@@ -68,6 +74,7 @@ class GlyphAudioHandler extends BaseAudioHandler
   }
 
   void _broadcast() {
+    _syncVisualizer();
     playbackState.add(
       playbackState.value.copyWith(
         controls: [
@@ -115,6 +122,25 @@ class GlyphAudioHandler extends BaseAudioHandler
         'accentForeground',
         accent.foreground.toARGB32(),
       );
+      await _updateWidgets();
+    } catch (_) {
+      /* Launcher support never prevents changing the app theme. */
+    }
+  }
+
+  void _syncVisualizer() {
+    unawaited(
+      visualizer.updatePlayback(
+        player.androidAudioSessionId,
+        player.playing && player.processingState == ProcessingState.ready,
+      ),
+    );
+  }
+
+  Future<void> setWidgetTheme(String mode) async {
+    if (!Platform.isAndroid) return;
+    try {
+      await HomeWidget.saveWidgetData('themeMode', mode);
       await _updateWidgets();
     } catch (_) {
       /* Launcher support never prevents changing the app theme. */
@@ -257,6 +283,7 @@ class GlyphAudioHandler extends BaseAudioHandler
       await s.cancel();
     }
     await player.dispose();
+    await visualizer.dispose();
     await errors.close();
   }
 }

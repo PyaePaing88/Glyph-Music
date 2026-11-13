@@ -33,6 +33,9 @@ class MainActivity : AudioServiceActivity() {
     }
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        if (!flutterEngine.plugins.has(GlyphVisualizerPlugin::class.java)) {
+            flutterEngine.plugins.add(GlyphVisualizerPlugin())
+        }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "glyph/background_playback")
             .setMethodCallHandler { call, result ->
                 if (call.method == "openAppSettings") {

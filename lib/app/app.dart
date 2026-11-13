@@ -111,72 +111,180 @@ class GlyphShell extends StatefulWidget {
 }
 
 class _GlyphShellState extends State<GlyphShell> {
+  final pages = PageController();
   int tab = 0;
+  Timer? _exitTimer;
+  late final AppLifecycleListener _lifecycle;
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycle = AppLifecycleListener(onInactive: _resetExit);
+  }
+
+  void _resetExit() {
+    if (_exitTimer == null) return;
+    _exitTimer?.cancel();
+    _exitTimer = null;
+    if (mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
+  }
+
+  void _handleBack(bool didPop, Object? result) {
+    if (didPop) return;
+    if (MediaQuery.viewInsetsOf(context).bottom > 0) {
+      FocusManager.instance.primaryFocus?.unfocus();
+      _resetExit();
+      return;
+    }
+    if (_exitTimer != null) {
+      _resetExit();
+      unawaited(SystemNavigator.pop());
+      return;
+    }
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Press Back again to exit'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    _exitTimer = Timer(const Duration(seconds: 2), () => _exitTimer = null);
+  }
+
+  void selectTab(int index) {
+    _resetExit();
+    FocusManager.instance.primaryFocus?.unfocus();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      pages.jumpToPage(index);
+    } else {
+      unawaited(
+        pages.animateToPage(
+          index,
+          duration: const Duration(milliseconds: 380),
+          curve: Curves.easeInOutCubic,
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _exitTimer?.cancel();
+    _lifecycle.dispose();
+    pages.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = widget.c;
-    return Scaffold(
-      body: SafeArea(
-        bottom: false,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 760),
-            child: Column(
-              children: [
-                Expanded(
-                  child: IndexedStack(
-                    index: tab,
-                    children: [
-                      HomeScreen(
-                        c: c,
-                        onLibrary: () => setState(() => tab = 2),
-                        onSearch: () => setState(() => tab = 1),
-                      ),
-                      SearchScreen(c: c),
-                      LibraryScreen(c: c),
-                      PlaylistsScreen(c: c),
-                    ],
-                  ),
-                ),
-                if (c.current != null) MiniPlayer(c: c),
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border(
-                      top: BorderSide(color: Theme.of(context).dividerColor),
+    return PopScope<Object?>(
+      canPop: false,
+      onPopInvokedWithResult: _handleBack,
+      child: Scaffold(
+        body: SafeArea(
+          bottom: false,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 760),
+              child: Column(
+                children: [
+                  Expanded(
+                    child: PageView(
+                      controller: pages,
+                      physics: const _SmoothPagePhysics(),
+                      onPageChanged: (index) {
+                        _resetExit();
+                        FocusManager.instance.primaryFocus?.unfocus();
+                        setState(() => tab = index);
+                      },
+                      children: [
+                        _KeepAlivePage(
+                          child: HomeScreen(
+                            c: c,
+                            onLibrary: () => selectTab(2),
+                            onSearch: () => selectTab(1),
+                          ),
+                        ),
+                        _KeepAlivePage(child: SearchScreen(c: c)),
+                        _KeepAlivePage(child: LibraryScreen(c: c)),
+                        _KeepAlivePage(child: PlaylistsScreen(c: c)),
+                      ],
                     ),
                   ),
-                  child: NavigationBar(
-                    selectedIndex: tab,
-                    onDestinationSelected: (i) => setState(() => tab = i),
-                    height: 74,
-                    destinations: const [
-                      NavigationDestination(
-                        icon: Icon(Icons.grid_view_outlined),
-                        selectedIcon: Icon(Icons.grid_view_rounded),
-                        label: 'Home',
+                  if (c.current != null) MiniPlayer(c: c),
+                  Container(
+                    decoration: BoxDecoration(
+                      border: Border(
+                        top: BorderSide(color: Theme.of(context).dividerColor),
                       ),
-                      NavigationDestination(
-                        icon: Icon(Icons.search),
-                        label: 'Search',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.library_music_outlined),
-                        selectedIcon: Icon(Icons.library_music),
-                        label: 'Library',
-                      ),
-                      NavigationDestination(
-                        icon: Icon(Icons.queue_music_outlined),
-                        label: 'Playlists',
-                      ),
-                    ],
+                    ),
+                    child: NavigationBar(
+                      selectedIndex: tab,
+                      onDestinationSelected: selectTab,
+                      height: 74,
+                      destinations: const [
+                        NavigationDestination(
+                          icon: Icon(Icons.grid_view_outlined),
+                          selectedIcon: Icon(Icons.grid_view_rounded),
+                          label: 'Home',
+                        ),
+                        NavigationDestination(
+                          icon: Icon(Icons.search),
+                          label: 'Search',
+                        ),
+                        NavigationDestination(
+                          icon: Icon(Icons.library_music_outlined),
+                          selectedIcon: Icon(Icons.library_music),
+                          label: 'Library',
+                        ),
+                        NavigationDestination(
+                          icon: Icon(Icons.queue_music_outlined),
+                          label: 'Playlists',
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
+  }
+}
+
+class _SmoothPagePhysics extends ScrollPhysics {
+  const _SmoothPagePhysics({super.parent});
+
+  @override
+  _SmoothPagePhysics applyTo(ScrollPhysics? ancestor) =>
+      _SmoothPagePhysics(parent: buildParent(ancestor));
+
+  @override
+  SpringDescription get spring =>
+      SpringDescription.withDampingRatio(mass: 1, stiffness: 180, ratio: 1);
+}
+
+class _KeepAlivePage extends StatefulWidget {
+  const _KeepAlivePage({required this.child});
+  final Widget child;
+
+  @override
+  State<_KeepAlivePage> createState() => _KeepAlivePageState();
+}
+
+class _KeepAlivePageState extends State<_KeepAlivePage>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return RepaintBoundary(child: widget.child);
   }
 }
 

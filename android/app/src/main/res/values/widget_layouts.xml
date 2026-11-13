@@ -1,0 +1,7 @@
+<resources>
+    <!-- A separate layout ID forces reinflation when switching back to System,
+         clearing colours previously applied by an explicit Light/Dark choice. -->
+    <item name="glyph_widget_explicit" type="layout">@layout/glyph_widget</item>
+    <item name="glyph_compact_explicit" type="layout">@layout/glyph_compact</item>
+    <item name="glyph_tall_explicit" type="layout">@layout/glyph_tall</item>
+</resources>

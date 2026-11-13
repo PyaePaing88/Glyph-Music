@@ -6,7 +6,9 @@ Uri youtubeSearchUri(String query) =>
 
 class DiscoveryOfflineException extends StateError {
   DiscoveryOfflineException()
-    : super('No connection. Showing your local library instead.');
+    : super(
+        'No connection. Connect to the internet and try YouTube search again.',
+      );
 }
 
 class DiscoveryResult {

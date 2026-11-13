@@ -129,21 +129,6 @@ class HomeScreen extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 28),
-                    FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.black,
-                      ),
-                      onPressed: c.busy ? null : () => c.importMusic(),
-                      icon: c.busy
-                          ? const SizedBox.square(
-                              dimension: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.add, size: 18),
-                      label: Text(c.busy ? 'Importing…' : 'Import music'),
-                    ),
                     const SizedBox(height: 16),
                     const Eyebrow(
                       'NO ACCOUNT. NO ALGORITHM.',
@@ -154,26 +139,6 @@ class HomeScreen extends StatelessWidget {
               ),
             ],
           ),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: _Stat(
-                value: c.songs.length.toString().padLeft(2, '0'),
-                label: 'TRACKS',
-                onTap: onLibrary,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _Stat(
-                value: fileSize(c.totalBytes),
-                label: 'ON YOUR DEVICE',
-                onTap: () => openPage(context, SettingsScreen(c: c)),
-              ),
-            ),
-          ],
         ),
         SectionHeading(
           'Made for your mood',
@@ -214,43 +179,6 @@ class HomeScreen extends StatelessWidget {
             ),
           ],
         ),
-        SectionHeading(
-          'Recently played',
-          trailing: TextButton(
-            onPressed: onLibrary,
-            child: const Text('View library'),
-          ),
-        ),
-        if (c.recent.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              border: Border.all(color: Theme.of(context).dividerColor),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.graphic_eq, size: 28),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Your next favorite starts here'),
-                      Text(
-                        'Import a track and make yourself at home.',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          )
-        else
-          ...c.recent
-              .take(4)
-              .map((s) => SongTile(c: c, song: s, tracks: c.recent)),
         if (c.playlists.isNotEmpty) ...[
           const SectionHeading('Your rotations'),
           SizedBox(
@@ -289,6 +217,43 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
         ],
+        SectionHeading(
+          'Recently played',
+          trailing: TextButton(
+            onPressed: onLibrary,
+            child: const Text('View library'),
+          ),
+        ),
+        if (c.recent.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              border: Border.all(color: Theme.of(context).dividerColor),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.graphic_eq, size: 28),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Your next favorite starts here'),
+                      Text(
+                        'Import a track and make yourself at home.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          ...c.recent
+              .take(4)
+              .map((s) => SongTile(c: c, song: s, tracks: c.recent)),
         const SizedBox(height: 32),
         const Center(child: Eyebrow('Less, but better.  /  GLYPH')),
       ],
@@ -301,36 +266,6 @@ class TransformArt extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       Transform.rotate(angle: -.3, child: const RecordArt(size: 245, seed: 1));
-}
-
-class _Stat extends StatelessWidget {
-  const _Stat({required this.value, required this.label, required this.onTap});
-  final String value, label;
-  final VoidCallback onTap;
-  @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: onTap,
-    borderRadius: BorderRadius.circular(20),
-    child: Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).dividerColor),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            value,
-            style: Theme.of(context).textTheme.headlineSmall
-                ?.copyWith(fontFamily: 'monospace'),
-          ),
-          const SizedBox(height: 6),
-          Eyebrow(label),
-        ],
-      ),
-    ),
-  );
 }
 
 class _CollectionCard extends StatelessWidget {
